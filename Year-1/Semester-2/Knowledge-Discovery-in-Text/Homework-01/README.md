@@ -35,6 +35,10 @@ Homework-01/
 ├── src/
 │   └── finmmeval_hw/
 │       ├── __init__.py
+│       ├── benchmarks/
+│       │   ├── experiment_config.py
+│       │   ├── runner.py
+│       │   └── models/
 │       ├── cli.py
 │       ├── data.py
 │       ├── evaluation.py
@@ -86,6 +90,47 @@ PYTHONPATH=src ./.venv/bin/python -m finmmeval_hw.cli train \
   --metrics-out results/dev_metrics_finmmeval_transformer_compare.json
 ```
 
+Train Llama 3 8B with QLoRA on RunPod:
+
+```bash
+PYTHONPATH=src ./.venv/bin/python -m finmmeval_hw.llama_qlora \
+  --config configs/llama_qlora.yaml
+```
+
+RunPod setup notes are in:
+- `docs/runpod_llama3_qlora.md`
+
+Run extended tutor-aligned benchmarks (structured runner):
+
+```bash
+PYTHONPATH=src ./.venv/bin/python -m finmmeval_hw.benchmarks.runner \
+  --config-yaml configs/benchmarks.yaml \
+  --input-jsonl data/processed/english_questions_finmmeval.jsonl \
+  --output-json results/extended_benchmarks_finmmeval.json \
+  --output-md results/extended_benchmarks_finmmeval.md
+```
+
+Run the same benchmark on a percentage of the combined dataset (for faster experiments):
+
+```bash
+PYTHONPATH=src ./.venv/bin/python -m finmmeval_hw.benchmarks.runner \
+  --config-yaml configs/benchmarks.yaml \
+  --input-jsonl data/processed/english_questions_combined.jsonl \
+  --output-json results/extended_benchmarks_combined_10pct.json \
+  --output-md results/extended_benchmarks_combined_10pct.md \
+  --seed 42 \
+  --dev-size 0.2 \
+  --sample-ratio 0.1 \
+  --transformer-model-dir models/option_pair_transformer_finmmeval
+```
+
+Central benchmark configuration is in:
+- `src/finmmeval_hw/benchmarks/experiment_config.py`
+- `configs/benchmarks.yaml` (editable hyperparameters and enabled flags per model)
+
+Each benchmark model has its own file in:
+- `src/finmmeval_hw/benchmarks/models/`
+
 ## BhashaBench-Finance (English MCQ only)
 
 This dataset is gated. First authenticate:
@@ -129,6 +174,8 @@ Observed BBF English schema (test split):
 - `models/option_pair_classifier.joblib` - trained model
 - `results/dev_metrics.json` - local dev scores for both approaches
 - `results/submission.csv` - prediction file (`id,answer`)
+- `results/extended_benchmarks_finmmeval.json` - structured extended model comparison (FinMMEval)
+- `results/comparison_extended_all.md` - combined summary including BBF 4D multiclass
 
 ## Notes
 

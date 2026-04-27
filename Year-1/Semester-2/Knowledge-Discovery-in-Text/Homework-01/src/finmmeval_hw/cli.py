@@ -132,6 +132,21 @@ def _resolve_model_path(model_type: str, model_path: str) -> str:
     return str(path)
 
 
+def _sample_questions(
+    questions_df: pd.DataFrame,
+    sample_ratio: float,
+    seed: int,
+) -> pd.DataFrame:
+    if not (0.0 < sample_ratio <= 1.0):
+        raise ValueError(f"sample_ratio must be in (0, 1], got: {sample_ratio}")
+    if sample_ratio >= 1.0:
+        return questions_df.reset_index(drop=True)
+
+    sample_size = max(1, int(len(questions_df) * sample_ratio))
+    sampled = questions_df.sample(n=sample_size, random_state=seed, replace=False)
+    return sampled.reset_index(drop=True)
+
+
 def _make_train_dev_split(
     questions_df: pd.DataFrame,
     dev_size: float,
@@ -178,7 +193,12 @@ def cmd_prepare(args: argparse.Namespace) -> None:
 
 
 def cmd_train(args: argparse.Namespace) -> None:
-    questions_df = _load_for_pipeline(args)
+    all_questions_df = _load_for_pipeline(args)
+    questions_df = _sample_questions(
+        questions_df=all_questions_df,
+        sample_ratio=args.sample_ratio,
+        seed=args.seed,
+    )
     train_df, dev_df = _make_train_dev_split(
         questions_df,
         dev_size=args.dev_size,
@@ -204,6 +224,9 @@ def cmd_train(args: argparse.Namespace) -> None:
         linear_model.save(model_out_resolved)
 
     metrics = {
+        "loaded_size": len(all_questions_df),
+        "sampled_size": len(questions_df),
+        "sample_ratio": args.sample_ratio,
         "train_size": len(train_df),
         "dev_size": len(dev_df),
         "selected_model": selected_model_name,
@@ -219,6 +242,9 @@ def cmd_train(args: argparse.Namespace) -> None:
     split_payload = {
         "seed": args.seed,
         "dev_size": args.dev_size,
+        "sample_ratio": args.sample_ratio,
+        "loaded_size": len(all_questions_df),
+        "sampled_size": len(questions_df),
         "train_ids": train_df["id"].tolist(),
         "dev_ids": dev_df["id"].tolist(),
     }
@@ -229,7 +255,12 @@ def cmd_train(args: argparse.Namespace) -> None:
 
 
 def cmd_evaluate(args: argparse.Namespace) -> None:
-    questions_df = _load_for_pipeline(args)
+    all_questions_df = _load_for_pipeline(args)
+    questions_df = _sample_questions(
+        questions_df=all_questions_df,
+        sample_ratio=args.sample_ratio,
+        seed=args.seed,
+    )
     train_df, dev_df = _make_train_dev_split(
         questions_df,
         dev_size=args.dev_size,
@@ -255,6 +286,9 @@ def cmd_evaluate(args: argparse.Namespace) -> None:
         selected_dev_preds = linear_dev_preds
 
     metrics = {
+        "loaded_size": len(all_questions_df),
+        "sampled_size": len(questions_df),
+        "sample_ratio": args.sample_ratio,
         "train_size": len(train_df),
         "dev_size": len(dev_df),
         "selected_model": selected_model_name,
@@ -320,6 +354,7 @@ def cmd_run_all(args: argparse.Namespace) -> None:
         bbf_question_type=args.bbf_question_type,
         bbf_use_token=args.bbf_use_token,
         dev_size=args.dev_size,
+        sample_ratio=args.sample_ratio,
         seed=args.seed,
         max_features=args.max_features,
         ngram_min=args.ngram_min,
@@ -372,6 +407,12 @@ def build_parser() -> argparse.ArgumentParser:
     train.add_argument("--cache-dir", type=str, default="data/raw/hf_cache")
     _add_source_args(train)
     train.add_argument("--dev-size", type=float, default=0.2)
+    train.add_argument(
+        "--sample-ratio",
+        type=float,
+        default=1.0,
+        help="Keep only this fraction of rows before train/dev split (for example: 0.1).",
+    )
     train.add_argument("--seed", type=int, default=42)
     _add_model_args(train)
     train.add_argument("--model-out", type=str, default="models/option_pair_classifier.joblib")
@@ -384,6 +425,12 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--cache-dir", type=str, default="data/raw/hf_cache")
     _add_source_args(evaluate)
     evaluate.add_argument("--dev-size", type=float, default=0.2)
+    evaluate.add_argument(
+        "--sample-ratio",
+        type=float,
+        default=1.0,
+        help="Keep only this fraction of rows before train/dev split (for example: 0.1).",
+    )
     evaluate.add_argument("--seed", type=int, default=42)
     _add_model_args(evaluate)
     evaluate.add_argument("--model", type=str, default="models/option_pair_classifier.joblib")
@@ -410,6 +457,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_all.add_argument("--prepared", type=str, default="data/processed/english_questions.jsonl")
     _add_source_args(run_all)
     run_all.add_argument("--dev-size", type=float, default=0.2)
+    run_all.add_argument(
+        "--sample-ratio",
+        type=float,
+        default=1.0,
+        help="Keep only this fraction of rows before train/dev split (for example: 0.1).",
+    )
     run_all.add_argument("--seed", type=int, default=42)
     _add_model_args(run_all)
     run_all.add_argument("--model-out", type=str, default="models/option_pair_classifier.joblib")

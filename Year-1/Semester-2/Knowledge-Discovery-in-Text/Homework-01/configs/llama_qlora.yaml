@@ -1,0 +1,52 @@
+data:
+  input_jsonl: data/processed/english_questions_combined.jsonl
+  sample_ratio: 1.0
+  dev_size: 0.2
+  seed: 42
+
+model:
+  model_name: meta-llama/Meta-Llama-3-8B-Instruct
+  output_dir: models/llama3_8b_qlora_combined
+  max_length: 1024
+  load_in_4bit: true
+  bnb_4bit_quant_type: nf4
+  bnb_4bit_compute_dtype: bfloat16
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+training:
+  num_train_epochs: 2
+  per_device_train_batch_size: 1
+  per_device_eval_batch_size: 1
+  gradient_accumulation_steps: 8
+  learning_rate: 0.0002
+  weight_decay: 0.0
+  warmup_ratio: 0.03
+  logging_steps: 10
+  eval_steps: 100
+  save_steps: 100
+  save_total_limit: 2
+  gradient_checkpointing: true
+  bf16: true
+  fp16: false
+  report_to: none
+
+generation:
+  max_new_tokens: 8
+  do_sample: false
+
+outputs:
+  metrics_json: results/llama3_8b_qlora_combined_metrics.json
+  predictions_csv: results/llama3_8b_qlora_combined_predictions.csv
+  split_json: results/llama3_8b_qlora_combined_split.json

@@ -1,0 +1,2 @@
+"""Structured extended benchmark package."""
+

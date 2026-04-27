@@ -26,7 +26,13 @@ class LexicalOverlapRanker:
 
     def predict(self, questions_df: pd.DataFrame) -> Dict[str, List[str]]:
         predictions: Dict[str, List[str]] = {}
-        for _, row in questions_df.iterrows():
+        iterator = questions_df.iterrows()
+        for _, row in tqdm(
+            iterator,
+            total=len(questions_df),
+            desc="Lexical overlap inference",
+            leave=False,
+        ):
             q_tokens = self._tokenize(row["question"])
             best_label = row["choice_labels"][0]
             best_score = -1.0
@@ -77,19 +83,33 @@ class OptionPairClassifier:
         )
 
     def fit(self, train_questions_df: pd.DataFrame) -> None:
-        option_df = build_option_level_frame(train_questions_df, with_targets=True)
-        self.pipeline.fit(option_df["feature_text"], option_df["target"])
+        with tqdm(total=2, desc="TF-IDF+LogReg train", leave=False) as pbar:
+            option_df = build_option_level_frame(train_questions_df, with_targets=True)
+            pbar.set_postfix_str("vectorize+fit")
+            self.pipeline.fit(option_df["feature_text"], option_df["target"])
+            pbar.update(2)
 
     def predict(self, questions_df: pd.DataFrame) -> Dict[str, List[str]]:
         predictions: Dict[str, List[str]] = {}
-        option_df = build_option_level_frame(questions_df, with_targets=False)
-        probs = self.pipeline.predict_proba(option_df["feature_text"])[:, 1]
-        option_df = option_df.copy()
-        option_df["proba"] = probs
+        with tqdm(total=3, desc="TF-IDF+LogReg inference", leave=False) as pbar:
+            option_df = build_option_level_frame(questions_df, with_targets=False)
+            pbar.update(1)
+            probs = self.pipeline.predict_proba(option_df["feature_text"])[:, 1]
+            pbar.update(1)
+            option_df = option_df.copy()
+            option_df["proba"] = probs
 
-        for qid, group in option_df.groupby("id", sort=False):
-            best = group.sort_values(["proba", "label"], ascending=[False, True]).iloc[0]
-            predictions[qid] = [str(best["label"])]
+            grouped = option_df.groupby("id", sort=False)
+            total_groups = option_df["id"].nunique()
+            for qid, group in tqdm(
+                grouped,
+                total=total_groups,
+                desc="Rank options",
+                leave=False,
+            ):
+                best = group.sort_values(["proba", "label"], ascending=[False, True]).iloc[0]
+                predictions[qid] = [str(best["label"])]
+            pbar.update(1)
         return predictions
 
     def save(self, model_path: str | Path) -> None:

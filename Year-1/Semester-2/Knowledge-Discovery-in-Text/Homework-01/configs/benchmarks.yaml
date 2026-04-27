@@ -1,0 +1,61 @@
+io:
+  input_jsonl: data/processed/english_questions_finmmeval.jsonl
+  output_json: results/extended_benchmarks_finmmeval.json
+  output_md: results/extended_benchmarks_finmmeval.md
+
+split:
+  seed: 42
+  dev_size: 0.2
+  sample_ratio: 1.0
+
+models:
+  most_common_letter:
+    enabled: true
+    name: most_common_letter_baseline
+
+  lexical_overlap:
+    enabled: true
+    name: lexical_overlap
+
+  tfidf_logreg_pair:
+    enabled: true
+    name: tfidf_logreg_pair
+    max_features: 40000
+    ngram_min: 1
+    ngram_max: 2
+    c_value: 1.0
+
+  svm_pair:
+    enabled: true
+    name: svm_pair
+    max_features: 50000
+    c_value: 1.0
+
+  mlp_pair:
+    enabled: true
+    name: mlp_pair
+    max_features: 50000
+    svd_components: 256
+    hidden_layer_sizes: [256, 64]
+    max_iter: 250
+
+  word2vec_mlp_pair:
+    enabled: true
+    name: word2vec_mlp_pair
+    vector_size: 200
+    window: 5
+    epochs: 20
+    hidden_layer_sizes: [256, 64]
+    max_iter: 300
+
+  multiclass_4d_svm_summary:
+    enabled: true
+    name: multiclass_4d_svm_summary
+    max_features: 50000
+    c_value: 1.0
+    summary_max_sentences: 2
+
+  transformer_cross_encoder:
+    enabled: true
+    name: transformer_cross_encoder
+    model_dir: models/option_pair_transformer_finmmeval
