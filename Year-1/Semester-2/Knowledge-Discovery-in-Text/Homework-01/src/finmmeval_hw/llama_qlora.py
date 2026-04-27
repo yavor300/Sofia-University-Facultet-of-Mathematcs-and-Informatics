@@ -70,8 +70,7 @@ def _format_options(row: pd.Series) -> str:
 def build_prompt(row: pd.Series) -> str:
     return (
         "You are answering a financial multiple-choice question.\n"
-        "Return only the correct option letter. If multiple options are correct, "
-        "return the letters separated by commas.\n\n"
+        "Exactly one option is correct. Return only one option letter.\n\n"
         f"Question:\n{row['question']}\n\n"
         f"Options:\n{_format_options(row)}\n\n"
         "Answer:"
@@ -79,7 +78,7 @@ def build_prompt(row: pd.Series) -> str:
 
 
 def build_answer(row: pd.Series) -> str:
-    return " " + ", ".join(str(label).upper() for label in row["gold_letters"])
+    return " " + str(row["gold_letters"][0]).upper()
 
 
 def _tokenize_row(row: dict, tokenizer, max_length: int) -> dict:
@@ -179,12 +178,11 @@ def _load_model_and_tokenizer(cfg: dict):
 
 def _extract_prediction(text: str, allowed_labels: List[str]) -> List[str]:
     allowed = {label.lower() for label in allowed_labels}
-    found = []
     for match in ANSWER_RE.findall(text):
         label = match.lower()
-        if label in allowed and label not in found:
-            found.append(label)
-    return found[: max(1, len(found))] if found else []
+        if label in allowed:
+            return [label]
+    return []
 
 
 def _predict_dev(model, tokenizer, dev_df: pd.DataFrame, cfg: dict) -> Dict[str, List[str]]:
